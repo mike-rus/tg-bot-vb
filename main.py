@@ -12,7 +12,7 @@ logging.basicConfig(
 #  retrieves a logger named after the current module from the logging module's hierarchy of loggers
 logger = logging.getLogger(__name__)
 
-TOKEN = '6823174489:AAHNXhamyQsBi2vtFRESKiFiY_Kl1oWtb98'
+TOKEN = ''
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await context.bot.send_message(chat_id=update.effective_chat.id, text="I'm a bot, please talk to me!")
