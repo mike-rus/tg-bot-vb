@@ -1,0 +1,32 @@
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN mkdir -p /var/lib/apt/lists/partial
+
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    apt-get install -y apt-utils && \
+    apt-get install -y --no-install-recommends --no-install-suggests \
+        apt-utils \
+        software-properties-common \
+        python3-pip \
+        python3.9 \
+        python3.9-dev \
+        python3-tabulate \
+        black \
+        git 
+
+RUN mkdir -p /home/bot/log
+
+RUN useradd --uid 1000 --create-home whore && \
+    adduser whore sudo && \
+    mkdir /ubuntu && \
+    chown whore /ubuntu
+
+COPY requirements.txt /tmp
+
+RUN python3.9 -m pip install --user -r /tmp/requirements.txt
+WORKDIR /home/whore
+USER whore
+
