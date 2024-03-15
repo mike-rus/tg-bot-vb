@@ -14,12 +14,13 @@ from classes.club import Club
 
 logger = logging.getLogger(__name__)
 
+
 # The task of the class is to store information about clubs, perform basic bot routines, and unload local data to restore the bot's operation after a reboot.
 class ChatRegistry:
     def __init__(self, registry_folder: str):
         """
         Initializes the ChatRegistry object.
-        
+
         Args:
             registry_folder (str): The path to the folder where registry files are stored.
         """
@@ -181,9 +182,11 @@ class ChatRegistry:
             chat_id (int): The ID of the chat where the message will be sent.
             text (str): The text of the message.
             self_destruct (int, optional): Delay in seconds before the message is deleted. Defaults to 0.
-        """	
-     
-        message: Message = await self.bot.send_message(chat_id=chat_id, text=f"{text} {'⏰' if self_destruct != 0 else ''}")
+        """
+
+        message: Message = await self.bot.send_message(
+            chat_id=chat_id, text=f"{text} {'⏰' if self_destruct != 0 else ''}"
+        )
         if self_destruct != 0:
             asyncio.create_task(
                 self.delete_message_delayed(

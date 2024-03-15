@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
+
 # Perhaps not required, can be used as template for team_polling
 async def run_club_polling(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -95,7 +96,6 @@ async def help(update, context):
 
 
 if __name__ == "__main__":
-
     application = ApplicationBuilder().token(BOT_TOKEN).build()
     chat_registry.add_app_instance(application)
 
