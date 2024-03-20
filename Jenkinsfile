@@ -35,7 +35,6 @@ pipeline {
 
             }
             sendGitHubStatus(currentBuild.result.toLowerCase())
-
         }
     }
 }

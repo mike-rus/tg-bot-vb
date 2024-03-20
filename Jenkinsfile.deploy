@@ -1,0 +1,83 @@
+pipeline {
+    agent {
+        node {
+            label 'deploy'
+        }
+    }
+    parameters {
+        string(defaultValue: '', description: 'Enter the SHA commit', name: 'SHA_COMMIT')
+        string(defaultValue: '-1002013382035', description: 'Enter th chat ID', name: 'CHAT_ID')
+        string(defaultValue: '699', description: 'Enter the topic ID', name: 'TOPIC_ID')
+        choice(
+            name: 'ACTION',
+            choices: ['Start', 'Stop'],
+            description: 'Select the action to perform'
+        )
+    }
+
+    stages {
+        stage('Checkout') {
+            when {
+                expression { params.ACTION == 'Start' }
+            }
+            steps {
+                script {
+                    if (params.SHA_COMMIT == '') {
+                        error('SHA_COMMIT parameter is empty. Please specify the SHA commit.')
+                    }
+                    checkout([$class: 'GitSCM', branches: [[name: params.SHA_COMMIT]], userRemoteConfigs: [[url: env.GIT_URL]]])
+                }
+            }
+        }
+        stage('Stop') {
+            steps {
+                script {
+                    def containerExists = sh(script: 'docker ps -a --format "{{.Names}}" | grep -q telegram_bot && echo "true" || echo "false"', returnStdout: true).trim()
+                    if (containerExists == "true") {
+                        echo "Container 'telegram_bot' exists. Stopping..."
+                        sh 'docker stop telegram_bot'
+                    } else {
+                        echo "Container 'telegram_bot' does not exist."
+                    }
+                }
+            }
+        }
+        stage('Start') {
+            when {
+                expression { params.ACTION == 'Start' }
+            }
+            steps {
+                withCredentials([string(credentialsId: 'VolleybotToken', variable: 'BOT_TOKEN')]) {
+                    script {
+                        sh 'make run_bot_container'
+                        def containerExists = sh(script: 'docker ps -a --format "{{.Names}}" | grep -q telegram_bot && echo "true" || echo "false"', returnStdout: true).trim()
+                        if (containerExists == "true") {
+                            currentBuild.result = 'SUCCESS' 
+                        } else {
+                            currentBuild.result = 'FAILURE' 
+                        }
+                    }
+                }
+            }
+        }
+    }
+    post {
+    always {
+        withCredentials([string(credentialsId: 'MikRusBotToken', variable: 'BOT_TOKEN')]) {
+                script {
+                    def author = env.CHANGE_AUTHOR
+
+                    def shortCommitHash = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+
+                    def message = "Deployment with action:${params.ACTION} completed with status ${currentBuild.result} Commit ${shortCommitHash} build #${env.BUILD_ID}"
+       
+                    def apiUrl="https://api.telegram.org/bot${BOT_TOKEN}/sendDocument"
+                    writeFile file: "${WORKSPACE}/build.log", text: currentBuild.rawBuild.getLog(1000).join('\n')
+
+                    sh "curl -X POST -F 'document=@${WORKSPACE}/build.log' -F 'chat_id=${params.CHAT_ID}' -F 'reply_to_message_id=${params.TOPIC_ID}' -F 'caption=${message}' '${apiUrl}'"
+                }
+
+            }
+        }
+    }
+}
