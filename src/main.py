@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 
 BOT_TOKEN = os.environ.get("BOT_TOKEN")
 
+
 # Perhaps not required, can be used as template for team_polling
 async def run_club_polling(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
@@ -65,19 +66,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
 
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """
-    Initiates the start of the bot.
-    Adds the club to the registry.
-    """
-    await chat_registry.add_club(
-        Club(update.message.chat_id, update.effective_chat.title)
-    )
-    await chat_registry.delete_message_delayed(
-        update.message.chat_id, update.message.message_id, delay=10
-    )
-
-
 async def add_team(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     pass
 
@@ -95,7 +83,6 @@ async def help(update, context):
 
 
 if __name__ == "__main__":
-
     application = ApplicationBuilder().token(BOT_TOKEN).build()
     chat_registry.add_app_instance(application)
 
