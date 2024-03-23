@@ -18,7 +18,7 @@ help:
 	@echo "	  make run_dev_container"
 	@echo ""
 	@echo "  - To run linter (Python formatting) within development container:"
-	@echo "	  make lint_python-formatting"
+	@echo "	  make lint_python_formatting"
 	@echo ""
 	@echo "  - To build the bot image:"
 	@echo "	  make build_bot_image"
@@ -29,18 +29,19 @@ help:
 DOCKER = docker
 DEV_IMAGE = dev_image
 BOT_IMAGE = bot_image
+JENKINS_IMAGE = jenkins_image
 
 build_dev_image:
-	$(DOCKER) build -t $(DEV_IMAGE) . -f Dockerfile.dev
+	$(DOCKER) build -t $(DEV_IMAGE) --build-arg USER_ID=$(shell id -u) --build-arg GROUP_ID=$(shell id -g) . -f ./environment/Dockerfile.dev
 
 run_dev_container: build_dev_image
-	$(DOCKER) run -it -e USER_ID=1000 -e GROUP_ID=1000 -v $(CURDIR):/home/whore $(DEV_IMAGE)
+	$(DOCKER) run -it -e USER_ID=$(shell id -u) -e GROUP_ID=$(shell id -g) -v $(CURDIR):/home/whore $(DEV_IMAGE)
 
-lint_python-formatting: build_dev_image
-	$(DOCKER) run -it --rm -e USER_ID=1000 -e GROUP_ID=1000 -v $(CURDIR):/home/whore $(DEV_IMAGE) ./scripts/python-linter-formatting.sh
+lint_python_formatting: build_dev_image
+	$(DOCKER) run --rm -e USER_ID=$(shell id -u) -e GROUP_ID=$(shell id -g) -v $(CURDIR):/home/whore $(DEV_IMAGE) ./scripts/python-linter-formatting.sh
 
 build_bot_image:
-	$(DOCKER) build -t $(BOT_IMAGE) . -f Dockerfile.bot
+	$(DOCKER) build -t $(BOT_IMAGE) . -f ./environment/Dockerfile.bot
 
 run_bot_container: build_bot_image
 ifndef BOT_TOKEN
@@ -48,3 +49,8 @@ ifndef BOT_TOKEN
 endif
 	$(DOCKER) run -it --rm --name telegram_bot -e BOT_TOKEN=${BOT_TOKEN} -p 443:443 -v $(CURDIR):/home/whore $(BOT_IMAGE) 
 
+build_jenkins_image:
+	$(DOCKER) build . -t ${JENKINS_IMAGE} -f ./environment/Dockerfile.jenkins
+
+run_jenkins_server: build_jenkins_image
+	$(DOCKER) run -d -p 8080:8080 -p 50000:50000 -p 22:22 -v jenkins_home:/var/jenkins_home ${JENKINS_IMAGE}

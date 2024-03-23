@@ -1,3 +1,7 @@
-.obj
-.tap
+*.obj
 .pickle
+registry
+*.tap
+.cache
+*.log
+.bash_history
