@@ -11,6 +11,7 @@ from telegram.ext import ApplicationBuilder, CallbackContext
 from telegram._message import Message
 
 from classes.club import Club
+from classes.team import Team
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,78 @@ class ChatRegistry:
         await self.send_message(
             chat_id=chat_id, text=f"The club with id #{chat_id} has been removed"
         )
+        
+    async def add_team(self, team: Team, chat_id: int):
+        """
+        Adds a new team to the registry.
 
+        Args:
+            team (Team): The Team object to be added.
+        """
+        team_topic_id = team.get_team_message_thread_id()        
+        team_name = team.get_team_name()
+        team_id = team.get_team_id()
+        
+        club = self._get_club_by_chat_id(chat_id)
+        
+        if self._is_new_chat_id(chat_id):
+            await self.send_message(
+                chat_id=chat_id,
+                message_thread_id = team_topic_id,
+                text=f"The club with id #{chat_id} does not exist, please register it first by using /start command",
+                self_destruct=10,
+            )
+            return
+        if club.has_team(team_id):
+            await self.send_message(
+                chat_id=chat_id,
+                message_thread_id=team_topic_id,
+                text=f"The team {team_name} with id #{team_id} already exists in club {club.get_title()} with id #{chat_id}",
+                self_destruct=10,
+            )
+            return
+        
+        club.add_team(team)
+        await self.send_message(
+            chat_id=chat_id,
+            message_thread_id=team_topic_id,
+            text=f"The team {team_name} with id #{team_id} has been registered in club {club.get_title()}"
+        )
+        # TODO: or maybe dump to the file whore club data?
+        self._store_team(team)
+                
+            
+    async def remove_team(self, chat_id: int, message_thread_id: int, team_id: int):
+        """
+        Removes a team from the chat registry based on its chat_id and team_id.
+
+        Args:
+            chat_id (int): The chat_id of the club.
+            team_id (int): The team identifier to be removed.
+            message_thread_id (int): The team topic identifier.
+        """
+        if self._is_new_chat_id(chat_id):
+            await self.send_message(
+                chat_id=chat_id, message_thread_id=message_thread_id, text=f"The club with id #{chat_id} does not exist", self_destruct=10
+            )
+            return
+        club = self._get_club_by_chat_id(chat_id)
+        
+        team = club.get_team_by_id(team_id)
+        
+        if not team:
+            await self.send_message(
+                chat_id=chat_id, message_thread_id=message_thread_id, text=f"The team with id #{team_id} does not exist in club #{chat_id}", self_destruct=10
+            )
+            return
+        
+        club.remove_team(team)    
+        self._delete_team(chat_id, team_id)
+        
+        await self.send_message(
+            chat_id=chat_id, message_thread_id=message_thread_id, text=f"The team {team.get_team_name()} with id #{team_id} has been removed from club {club.get_title()} #{chat_id}"
+        )
+        
     def add_app_instance(self, app: ApplicationBuilder):
         """
         Adds an application instance (bot, job_queue) to the chat registry.
@@ -173,7 +245,7 @@ class ChatRegistry:
         await self.bot.delete_message(chat_id=chat_id, message_id=message_id)
 
     async def send_message(
-        self, chat_id: int, text: str, self_destruct: int = 0
+        self, chat_id: int, text: str, self_destruct: int = 0, message_thread_id: int = None
     ) -> None:
         """
         Sends a message to a specified chat and schedules its deletion after a delay.
@@ -185,7 +257,7 @@ class ChatRegistry:
         """
 
         message: Message = await self.bot.send_message(
-            chat_id=chat_id, text=f"{text} {'⏰' if self_destruct != 0 else ''}"
+            chat_id=chat_id, message_thread_id=message_thread_id, text=f"{text} {'⏰' if self_destruct != 0 else ''}"
         )
         if self_destruct != 0:
             asyncio.create_task(
@@ -233,6 +305,51 @@ class ChatRegistry:
             club_data = club.data_to_json()
             with open(file_path, "w") as file:
                 json.dump(club_data, file)
+                
+    def _store_team(self, team: Team) -> None:
+        """
+        Adds team data to the club storage file.
+
+        Args:
+            team (Team): The team to be stored.
+        """
+        file_name = str(team.get_club_id())
+        file_path = os.path.join(self.registry_folder, file_name)
+        if os.path.exists(file_path):
+            team_data = team.data_to_json()       
+
+            with open(file_path, 'r') as file:
+                data = json.load(file)
+                if 'teams' in data:
+                    data['teams'].append(team_data)
+                else:
+                    data['teams'] = [team_data]
+                    
+            with open(file_path, "w") as file:
+                json.dump(data, file)
+                
+    def _delete_team(self, chat_id: int, team_id) -> bool:
+        """
+        Deletes the file associated with the given chat_id from the registry folder.
+
+        Args:
+            chat_id (int): The chat_id of the club whose file is to be deleted.
+        """
+        file_name = str(chat_id)
+        file_path = os.path.join(self.registry_folder, file_name)
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as file:
+                data = json.load(file)
+            
+            # Assuming 'teams' is a list of teams in the file
+            if 'teams' in data:
+                # Filter out the team with the matching team_id
+                data['teams'] = [team for team in data['teams'] if team.get('team_id') != team_id]
+                
+                with open(file_path, "w") as file:
+                    json.dump(data, file, indent=4)
+                    return True
+        return False
 
     def _registry_restoration(self) -> None:
         """
