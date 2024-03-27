@@ -11,6 +11,7 @@ from telegram.ext import (
 
 from classes.chat_registry import ChatRegistry
 from classes.club import Club
+from classes.team import Team
 
 REGISTRY_FOLDER = f"{os.getcwd()}/registry"
 
@@ -67,7 +68,40 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def add_team(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    pass
+    if not context.args:
+        await update.message.reply_text(
+            "At least one argument is required. Usage: /add_team <team_id> <team_name(optional)>"
+        )
+        return
+
+    # TODO: find better way to access topic title then using update.message.reply_to_message.forum_topic_created.name (it seems to return initial topic title, not the current one)
+    team_name = (
+        context.args[1]
+        if len(context.args) > 1
+        else update.message.reply_to_message.forum_topic_created.name
+    )
+
+    await chat_registry.add_team(
+        Team(
+            update.message.chat_id,
+            context.args[0],
+            update.message.message_thread_id,
+            team_name,
+        ),
+        update.message.chat_id,
+    )
+
+
+async def remove_team(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not context.args:
+        await update.message.reply_text(
+            "The team_id argument is required. Usage: /remove_team <team_id>"
+        )
+        return
+
+    await chat_registry.remove_team(
+        update.message.chat_id, update.message.message_thread_id, context.args[0]
+    )
 
 
 async def help(update, context):
@@ -89,6 +123,7 @@ if __name__ == "__main__":
     application.add_handler(CommandHandler("help", help))
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("add_team", add_team))
+    application.add_handler(CommandHandler("remove_team", remove_team))
     application.add_handler(CommandHandler("run_club_polling", run_club_polling))
     application.add_handler(CommandHandler("stop_club_polling", stop_club_polling))
     application.add_handler(MessageHandler(filters.COMMAND, help))
