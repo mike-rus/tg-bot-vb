@@ -69,23 +69,40 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def add_team(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args:
-        await update.message.reply_text('At least one argument is required. Usage: /add_team <team_id> <team_name(optional)>')
+        await update.message.reply_text(
+            "At least one argument is required. Usage: /add_team <team_id> <team_name(optional)>"
+        )
         return
-    
+
     # TODO: find better way to access topic title then using update.message.reply_to_message.forum_topic_created.name (it seems to return initial topic title, not the current one)
-    team_name = context.args[1] if len(context.args) > 1 else update.message.reply_to_message.forum_topic_created.name
+    team_name = (
+        context.args[1]
+        if len(context.args) > 1
+        else update.message.reply_to_message.forum_topic_created.name
+    )
 
     await chat_registry.add_team(
-        Team(update.message.chat_id, context.args[0], update.message.message_thread_id, team_name),
-        update.message.chat_id
+        Team(
+            update.message.chat_id,
+            context.args[0],
+            update.message.message_thread_id,
+            team_name,
+        ),
+        update.message.chat_id,
     )
+
 
 async def remove_team(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     if not context.args:
-        await update.message.reply_text('The team_id argument is required. Usage: /remove_team <team_id>')
+        await update.message.reply_text(
+            "The team_id argument is required. Usage: /remove_team <team_id>"
+        )
         return
-    
-    await chat_registry.remove_team(update.message.chat_id, update.message.message_thread_id ,context.args[0])
+
+    await chat_registry.remove_team(
+        update.message.chat_id, update.message.message_thread_id, context.args[0]
+    )
+
 
 async def help(update, context):
     help_message = """
