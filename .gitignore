@@ -5,3 +5,4 @@ registry
 .cache
 *.log
 .bash_history
+*__pycache__

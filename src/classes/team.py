@@ -1,12 +1,6 @@
-from classes.club import Club
+from classes.team_base import TeamBase
 
 
-class Team(Club):
-    def __init__(self, chat_id, team_id, topic_id, title):
-        super().__init__(chat_id)
-        self.team_id = team_id  # for website
-        self.topic_id = topic_id  # message_thread_id
-        self.team_title = title
-
-    def __str__(self):
-        return f"Team {self.team_id} in Club with chat_id: {self.chat_id}"
+class Team(TeamBase):
+    def __init__(self, team_id: int, topic_id: int, team_name: str = ""):
+        super().__init__(team_id, topic_id, team_name)
