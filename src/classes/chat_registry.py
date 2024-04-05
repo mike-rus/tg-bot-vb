@@ -36,30 +36,30 @@ class ChatRegistry:
             # Restore registry if folder already exists
             self._registry_restoration()
 
-    async def add_club(self, club: Club):
+    async def add_club(self, club: Club) -> None:
         """
         Adds a new club to the registry.
 
         Args:
             club (Club): The Club object to be added.
         """
-        if not self._is_new_chat_id(club.get_chat_id()):
+        if not self._is_new_chat_id(club.chat_id):
             # If the club already exists, send a message indicating it
             await self.send_message(
-                chat_id=club.get_chat_id(),
-                text=f"The club {club.get_title()} with id #{club.get_chat_id()} already exists",
+                chat_id=club.chat_id,
+                text=f"The club {club.title} with id #{club.chat_id} already exists",
                 self_destruct=10,
             )
         else:
             # If the club is new, add it to the registry, send a registration message, and store the club data to file
             self.clubs.append(club)
             await self.send_message(
-                chat_id=club.get_chat_id(),
-                text=f"The club {club.get_title()} with id #{club.get_chat_id()} has been registered",
+                chat_id=club.chat_id,
+                text=f"The club {club.title} with id #{club.chat_id} has been registered",
             )
-            self._store_club(club)
+            self.store_club(club)
 
-    async def remove_club(self, chat_id: int):
+    async def remove_club(self, chat_id: int) -> None:
         """
         Removes a club from the chat registry based on its chat_id.
 
@@ -67,7 +67,7 @@ class ChatRegistry:
             chat_id (int): The chat_id of the club to be removed.
         """
         for club in self.clubs:
-            if club.get_chat_id() == chat_id:
+            if club.chat_id == chat_id:
                 self.clubs.remove(club)
                 break
 
@@ -76,7 +76,36 @@ class ChatRegistry:
             chat_id=chat_id, text=f"The club with id #{chat_id} has been removed"
         )
 
-    def add_app_instance(self, app: ApplicationBuilder):
+    def get_club_by_chat_id(self, chat_id: int) -> Club | None:
+        """
+        Retrieves a club object based on its chat_id.
+
+        Args:
+            chat_id (int): The chat_id of the club to retrieve.
+
+        Returns:
+            Club: The club object with the specified chat_id, or None if not found.
+        """
+        for club in self.clubs:
+            if club.chat_id == chat_id:
+                return club
+        return None
+
+    def store_club(self, club: Club) -> None:
+        """
+        Stores club data in a file.
+
+        Args:
+            club (Club): The club to be stored.
+        """
+        file_name = str(club.chat_id)
+        file_path = os.path.join(self.registry_folder, file_name)
+        club_data = club.data_to_json()
+        # No check for the existence of the file, as if the file exists, it will be overwritten (update club), otherwise it will be created (add club)
+        with open(file_path, "w") as file:
+            json.dump(club_data, file, indent=4)
+
+    def add_app_instance(self, app: ApplicationBuilder) -> None:
         """
         Adds an application instance (bot, job_queue) to the chat registry.
 
@@ -87,14 +116,14 @@ class ChatRegistry:
         self.job_queue: JobQueue = app.job_queue
 
     # TODO move inside club
-    async def run_polling(self, chat_id: int):
+    async def run_polling(self, chat_id: int) -> None:
         """
         Start polling for a specific club identified by its chat_id.
 
         Args:
             chat_id (int): The chat_id of the club to start polling for.
         """
-        club: Club = self._get_club_by_chat_id(chat_id)
+        club: Club = self.get_club_by_chat_id(chat_id)
 
         # If the club is not found, send an error message
         if not club:
@@ -106,7 +135,7 @@ class ChatRegistry:
         # Send a message about the found club
         await self.send_message(
             chat_id=chat_id,
-            text=f"Club {club.get_title()} with id #{chat_id} has been found. Polling has started.",
+            text=f"Club {club.title} with id #{chat_id} has been found. Polling has started.",
             self_destruct=10,
         )
 
@@ -125,14 +154,14 @@ class ChatRegistry:
 
         # TODO I guess polling for teams should be started separetly
 
-    async def stop_polling(self, chat_id: int):
+    async def stop_polling(self, chat_id: int) -> None:
         """
         Stops polling for the specified club.
 
         Args:
             chat_id (int): The chat_id of the club to stop polling for.
         """
-        club: Club = self._get_club_by_chat_id(chat_id)
+        club: Club = self.get_club_by_chat_id(chat_id)
         if not club:
             await self.send_message(
                 chat_id=chat_id, text=f"Wrong club id #{chat_id}", self_destruct=10
@@ -146,7 +175,7 @@ class ChatRegistry:
         # TODO stop polling for Teams
 
     # Template
-    async def scheduled_operation(self, context: CallbackContext):
+    async def scheduled_operation(self, context: CallbackContext) -> None:
         """
         Executes a scheduled operation.
 
@@ -160,7 +189,9 @@ class ChatRegistry:
         )
 
     # TODO It seems to me that working with messages can be abstracted into a separate entity.
-    async def delete_message_delayed(self, chat_id: int, message_id: int, delay: int):
+    async def delete_message_delayed(
+        self, chat_id: int, message_id: int, delay: int
+    ) -> None:
         """
         Deletes a message after a specified delay.
 
@@ -173,7 +204,11 @@ class ChatRegistry:
         await self.bot.delete_message(chat_id=chat_id, message_id=message_id)
 
     async def send_message(
-        self, chat_id: int, text: str, self_destruct: int = 0
+        self,
+        chat_id: int,
+        text: str,
+        self_destruct: int = 0,
+        message_thread_id: int = None,
     ) -> None:
         """
         Sends a message to a specified chat and schedules its deletion after a delay.
@@ -185,7 +220,9 @@ class ChatRegistry:
         """
 
         message: Message = await self.bot.send_message(
-            chat_id=chat_id, text=f"{text} {'⏰' if self_destruct != 0 else ''}"
+            chat_id=chat_id,
+            message_thread_id=message_thread_id,
+            text=f"{text} {'⏰' if self_destruct != 0 else ''}",
         )
         if self_destruct != 0:
             asyncio.create_task(
@@ -206,7 +243,7 @@ class ChatRegistry:
         Returns:
             bool: True if the chat_id is new, False otherwise.
         """
-        return chat_id not in [club.get_chat_id() for club in self.clubs]
+        return chat_id not in [club.chat_id for club in self.clubs]
 
     def _delete_club(self, chat_id: int) -> None:
         """
@@ -220,37 +257,8 @@ class ChatRegistry:
         if os.path.exists(file_path):
             os.remove(file_path)
 
-    def _store_club(self, club: Club) -> None:
-        """
-        Stores club data in a file.
-
-        Args:
-            club (Club): The club to be stored.
-        """
-        file_name = str(club.get_chat_id())
-        file_path = os.path.join(self.registry_folder, file_name)
-        if not os.path.exists(file_path):
-            club_data = club.data_to_json()
-            with open(file_path, "w") as file:
-                json.dump(club_data, file)
-
     def _registry_restoration(self) -> None:
         """
         Performs restoration of the registry.
         """
         # TODO: Implement registry restoration logic
-
-    def _get_club_by_chat_id(self, chat_id: int) -> Club:
-        """
-        Retrieves a club object based on its chat_id.
-
-        Args:
-            chat_id (int): The chat_id of the club to retrieve.
-
-        Returns:
-            Club: The club object with the specified chat_id, or None if not found.
-        """
-        for club in self.clubs:
-            if club.get_chat_id() == chat_id:
-                return club
-        return None
