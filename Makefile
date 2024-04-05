@@ -47,7 +47,7 @@ run_bot_container: build_bot_image
 ifndef BOT_TOKEN
 	$(error BOT_TOKEN is not set. Please set BOT_TOKEN before running make.)
 endif
-	$(DOCKER) run -it --rm --name telegram_bot -e BOT_TOKEN=${BOT_TOKEN} -p 443:443 -v $(CURDIR):/home/whore $(BOT_IMAGE) 
+	$(DOCKER) run --rm -d --name telegram_bot -e BOT_TOKEN=${BOT_TOKEN} -p 443:443 -v $(CURDIR):/home/whore $(BOT_IMAGE) 
 
 build_jenkins_image:
 	$(DOCKER) build . -t ${JENKINS_IMAGE} -f ./environment/Dockerfile.jenkins
